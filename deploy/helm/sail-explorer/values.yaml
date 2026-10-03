@@ -1,0 +1,113 @@
+image:
+  repository: registry.example.org/serp/sailx
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Secret holding: SERVICE_JWT_SECRET, AGENT_API_KEY, CHAINLIT_AUTH_SECRET,
+# SQL_DSN (gateway DSN), PROFILE_DSN (demo catalogue only), METADATA_MCP_TOKEN (OpenMetadata), LLM_API_KEY
+existingSecret: sail-explorer
+
+# Shared, non-secret configuration for every component
+config:
+  LLM_BASE_URL: http://vllm.llm.svc:8000/v1
+  LLM_MODEL: Qwen/Qwen2.5-32B-Instruct
+  LLM_TEMPERATURE: "0.1"
+  REQUIRE_SQL_APPROVAL: "true"
+  SDC_THRESHOLD: "10"
+  SDC_ROUNDING: "5"
+  SQL_BACKEND: postgres          # or db2
+  SQL_DIALECT: postgres          # or db2
+  SQL_DIALECT_NAME: PostgreSQL   # shown to the model, e.g. "IBM DB2 11.5"
+  SQL_MAX_ROWS: "1000"
+  SQL_TIMEOUT_MS: "30000"
+  # Use your OpenMetadata MCP endpoint in production; the demo catalogue otherwise.
+  METADATA_MCP_URL: http://sail-explorer-catalog-mcp:8101/mcp
+  PHENOTYPE_API_BASE: https://phenotypes.healthdatagateway.org/api/v1
+  PHENOTYPE_FIXTURES: ""         # set to /app/demo/phenotypes.json for an offline demo
+  WEB_UI_URL: https://explorer.tre.example.org
+  UI_AUTH_MODE: header           # behind oauth2-proxy / Keycloak gatekeeper
+  UI_AUTH_HEADER: X-Auth-Request-Email
+  UI_ALLOWED_EMAIL_DOMAINS: ""
+  PROJECTS_FILE: /config/projects.yaml
+  AUDIT_LOG: "-"
+
+# Project registry (mounted at /config/projects.yaml). Generate from your project system.
+projects: |
+  projects:
+    demo:
+      title: "Demo: type 2 diabetes and deprivation"
+      schemas: [proj_demo]
+      default_schema: proj_demo
+      db_role: proj_demo_ro
+      members: [alice@example.org]
+      allow_slack_queries: false
+
+components:
+  ui:
+    enabled: true
+    command: ["chainlit", "run", "ui/app.py", "--host", "0.0.0.0", "--port", "8000", "--headless"]
+    port: 8000
+    replicas: 1
+    resources: {requests: {cpu: 200m, memory: 512Mi}, limits: {memory: 1Gi}}
+  agent-api:
+    enabled: true
+    command: ["sailx-agent-api"]
+    port: 8104
+    env: {API_PORT: "8104"}
+    replicas: 1
+    resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {memory: 512Mi}}
+  sql-mcp:
+    enabled: true
+    command: ["sailx-sql-mcp"]
+    port: 8103
+    env: {MCP_PORT: "8103"}
+    replicas: 2
+    resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {memory: 512Mi}}
+  phenotype-mcp:
+    enabled: true
+    command: ["sailx-phenotype-mcp"]
+    port: 8102
+    env: {MCP_PORT: "8102"}
+    replicas: 1
+    resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 256Mi}}
+  catalog-mcp:
+    enabled: false           # demo catalogue; disable when using OpenMetadata
+    command: ["sailx-catalog-mcp"]
+    port: 8101
+    env: {MCP_PORT: "8101", CATALOG_FILE: /app/demo/catalog.yaml}
+    replicas: 1
+    resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 256Mi}}
+
+ingress:
+  enabled: true
+  className: nginx
+  host: explorer.tre.example.org
+  tlsSecret: explorer-tls
+  annotations: {}
+    # nginx.ingress.kubernetes.io/auth-url: "https://oauth2.tre.example.org/oauth2/auth"
+    # nginx.ingress.kubernetes.io/auth-signin: "https://oauth2.tre.example.org/oauth2/start?rd=$escaped_request_uri"
+    # nginx.ingress.kubernetes.io/auth-response-headers: X-Auth-Request-Email
+
+networkPolicy:
+  enabled: true
+  # Where the SQL MCP server may connect: the research database only.
+  databaseCidr: 10.0.0.0/24
+  databasePort: 5432           # 50000 for DB2
+  # Where the UI and agent API may connect besides the MCP servers: the LLM and OpenMetadata.
+  llmNamespace: llm
+  openmetadataCidr: 10.0.1.0/24
+  openmetadataPort: 8585
+  # n8n namespace allowed to call the agent API
+  n8nNamespace: n8n
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile: {type: RuntimeDefault}
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities: {drop: [ALL]}

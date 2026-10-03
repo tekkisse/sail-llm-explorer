@@ -1,0 +1,123 @@
+# Demo metadata catalog. Stands in for OpenMetadata when METADATA_MODE=catalog.
+# scripts/push_catalog_to_openmetadata.py pushes these descriptions into a real OpenMetadata.
+# Tables are described at the SAIL base level (schema "sail"); projects query same-named views.
+
+service: sail_demo
+database: sail
+schema: sail
+
+glossary:
+  - term: ALF
+    description: Anonymised Linking Field. Pseudonymised person identifier (alf_pe) used to link records for the same person across SAIL datasets. Never returned in results.
+  - term: WIMD
+    description: Welsh Index of Multiple Deprivation 2019. Quintile 1 is the most deprived fifth of small areas in Wales, 5 the least deprived.
+  - term: Read v2
+    description: Clinical coding system used in Welsh GP records. Five-character codes, for example C10F. for type 2 diabetes. Look up code lists for a clinical concept in the HDR UK Phenotype Library.
+  - term: ICD-10
+    description: International Classification of Diseases, 10th revision. Used for hospital diagnoses (PEDW) and causes of death (ADDE). Four-character form without the dot, for example E119.
+  - term: Observation period
+    description: The time a person was registered with a SAIL-supplying GP practice (WLGP_CLEAN_GP_REG). Absence of a GP record outside this window means "not observed", not "did not happen".
+
+datasets:
+  - name: WDSD
+    title: Welsh Demographic Service Dataset
+    description: Demographics for people registered with a GP in Wales. One row per person.
+    tables: [wdsd_ar_pers]
+  - name: WLGP
+    title: Welsh Longitudinal General Practice
+    description: Primary care records from SAIL-supplying GP practices, coded in Read v2. Includes diagnoses, test results (e.g. HbA1c, BMI, blood pressure), smoking status and consultations.
+    tables: [wlgp_gp_event_cleansed, wlgp_clean_gp_reg, lkp_read_cd]
+  - name: PEDW
+    title: Patient Episode Database for Wales
+    description: Hospital admissions to NHS Wales hospitals. Spells with ICD-10 coded diagnoses.
+    tables: [pedw_spell, pedw_diag]
+  - name: ADDE
+    title: Annual District Death Extract
+    description: Death registrations with ICD-10 underlying cause of death.
+    tables: [adde_deaths]
+
+tables:
+  - name: wdsd_ar_pers
+    description: One row per person with week of birth, sex, deprivation quintile and ethnicity category.
+    grain: person
+    coverage: People registered with a Welsh GP, 2000 onwards
+    topics: [demographics, age, sex, deprivation, ethnicity]
+    known_issues:
+      - About 0.5% of people have a placeholder week of birth of 1900-01-01. Treat as missing.
+      - Ethnicity category is missing for about 40% of people; missingness is not random.
+    columns:
+      - {name: alf_pe, description: Pseudonymised person identifier (ALF). Join key to all other tables., sensitive: true, identifier: true}
+      - {name: wob, description: Week of birth (Monday of the week). 1900-01-01 is a placeholder for unknown., type: date}
+      - {name: gndr_cd, description: "Sex: 1 = male, 2 = female, 9 = unknown."}
+      - {name: lsoa2011_cd, description: Lower layer super output area (2011) of residence. Not available in project views., sensitive: true}
+      - {name: wimd_2019_quintile, description: WIMD 2019 deprivation quintile of residence. 1 = most deprived, 5 = least deprived.}
+      - {name: ethn_cat, description: "Ethnicity category: White, Asian, Black, Mixed, Other. Null when not recorded."}
+
+  - name: wlgp_clean_gp_reg
+    description: GP registration periods. Use these as observation windows for primary care data.
+    grain: registration period
+    coverage: 2000 to 2024
+    topics: [registration, observation period, practice]
+    known_issues:
+      - end_date is null for people still registered.
+    columns:
+      - {name: alf_pe, description: Pseudonymised person identifier (ALF)., sensitive: true, identifier: true}
+      - {name: prac_cd_pe, description: Pseudonymised GP practice identifier., sensitive: true}
+      - {name: start_date, description: Start of registration with a SAIL-supplying practice., type: date}
+      - {name: end_date, description: End of registration. Null means still registered., type: date}
+
+  - name: wlgp_gp_event_cleansed
+    description: Coded GP events. One row per recorded event (diagnosis, test result, measurement, status, consultation). Count people with COUNT(DISTINCT alf_pe), not rows.
+    grain: event
+    coverage: 2000 to 2024, events within GP registration periods
+    topics: [diagnoses, diabetes, hypertension, asthma, HbA1c, BMI, smoking status, blood pressure, consultations, test results]
+    known_issues:
+      - A small number of BMI values (Read 22K..) are recorded as 999, which is a placeholder, not a measurement.
+      - Codes are Read v2; map clinical concepts to codes using the Phenotype Library, never by guessing.
+    columns:
+      - {name: alf_pe, description: Pseudonymised person identifier (ALF)., sensitive: true, identifier: true}
+      - {name: prac_cd_pe, description: Pseudonymised GP practice identifier., sensitive: true}
+      - {name: event_cd, description: Read v2 event code (5 characters including dots). Join to lkp_read_cd for descriptions., code_system: Read v2}
+      - {name: event_val, description: "Numeric value where the event is a measurement, e.g. HbA1c in mmol/mol (42W5.), BMI in kg/m2 (22K..). Null otherwise.", type: numeric}
+      - {name: event_dt, description: Date the event was recorded., type: date}
+
+  - name: lkp_read_cd
+    description: Lookup of Read v2 codes to preferred terms.
+    grain: code
+    topics: [lookup, Read codes]
+    columns:
+      - {name: read_cd, description: Read v2 code., code_system: Read v2}
+      - {name: pref_term_60, description: Preferred term (60 characters).}
+
+  - name: pedw_spell
+    description: Hospital spells (admission to discharge). One row per spell.
+    grain: hospital spell
+    coverage: 2005 to 2024
+    topics: [hospital admissions, emergency admissions, length of stay]
+    known_issues:
+      - About 1% of spells have no discharge date.
+    columns:
+      - {name: spell_num_pe, description: Pseudonymised spell identifier. Join key to pedw_diag., sensitive: true, identifier: true}
+      - {name: alf_pe, description: Pseudonymised person identifier (ALF)., sensitive: true, identifier: true}
+      - {name: admis_dt, description: Admission date., type: date}
+      - {name: disch_dt, description: Discharge date. Null if missing., type: date}
+      - {name: admis_mthd_cd, description: "Admission method: 21 = emergency, 11 = elective (waiting list)."}
+
+  - name: pedw_diag
+    description: Diagnoses recorded for each hospital spell. diag_num 1 is the primary diagnosis.
+    grain: diagnosis
+    topics: [hospital diagnoses, ICD-10]
+    columns:
+      - {name: spell_num_pe, description: Pseudonymised spell identifier., sensitive: true, identifier: true}
+      - {name: diag_num, description: Diagnosis position. 1 = primary diagnosis.}
+      - {name: diag_cd_1234, description: "ICD-10 diagnosis code, 4 characters without the dot (e.g. E119). 3-character codes are padded with X (e.g. I10X).", code_system: ICD-10}
+
+  - name: adde_deaths
+    description: Death registrations. One row per person who died.
+    grain: person
+    coverage: 2005 to 2024
+    topics: [mortality, deaths, cause of death]
+    columns:
+      - {name: alf_pe, description: Pseudonymised person identifier (ALF)., sensitive: true, identifier: true}
+      - {name: dod, description: Date of death., type: date}
+      - {name: deathcause_diag_underlying_cd, description: ICD-10 underlying cause of death (4 characters, no dot)., code_system: ICD-10}

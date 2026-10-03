@@ -1,0 +1,19 @@
+# Project registry: who may query what. In production, generate this from the
+# SAIL project management system rather than editing by hand.
+projects:
+  demo:
+    title: "Demo: type 2 diabetes and deprivation"
+    schemas: [proj_demo]
+    default_schema: proj_demo
+    db_role: proj_demo_ro          # Postgres: role the gateway SET ROLEs into
+    db_credentials_secret: null    # DB2: name of the secret holding this project's credentials
+    members: [alice@example.org]
+    allow_slack_queries: false     # Slack sits outside the TRE: discovery only by default
+
+  other:
+    title: "Demo: mortality only"
+    schemas: [proj_other]
+    default_schema: proj_other
+    db_role: proj_other_ro
+    members: [bob@example.org]
+    allow_slack_queries: false

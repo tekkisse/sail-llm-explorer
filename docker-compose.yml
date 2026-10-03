@@ -1,0 +1,106 @@
+# Local demo of the full stack with synthetic data.
+#   cp .env.example .env    # then edit secrets
+#   docker compose --profile local-llm up -d --build
+#   docker compose exec ollama ollama pull qwen2.5:14b-instruct
+#   open http://localhost:8000  (alice@example.org / alice-demo)
+# Profiles: local-llm (Ollama), slack (n8n for the Slack intake).
+
+x-app: &app
+  build: .
+  image: sailx:dev
+  restart: unless-stopped
+  env_file: .env
+  environment: &app-env
+    PROJECTS_FILE: /app/demo/projects.yaml
+    AUDIT_LOG: "-"
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sail
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      GATEWAY_PASSWORD: ${GATEWAY_PASSWORD}
+      PROFILER_PASSWORD: ${PROFILER_PASSWORD}
+    volumes:
+      - ./demo/init:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sail && psql -U postgres -d sail -tAc \"select 1 from pg_roles where rolname='explorer_gateway'\" | grep -q 1"]
+      interval: 5s
+      retries: 30
+
+  catalog-mcp:
+    <<: *app
+    command: ["sailx-catalog-mcp"]
+    environment:
+      <<: *app-env
+      MCP_PORT: "8101"
+      CATALOG_FILE: /app/demo/catalog.yaml
+      PROFILE_DSN: postgresql://metadata_profiler:${PROFILER_PASSWORD}@postgres:5432/sail
+
+  phenotype-mcp:
+    <<: *app
+    command: ["sailx-phenotype-mcp"]
+    depends_on: []
+    environment:
+      <<: *app-env
+      MCP_PORT: "8102"
+
+  sql-mcp:
+    <<: *app
+    command: ["sailx-sql-mcp"]
+    environment:
+      <<: *app-env
+      MCP_PORT: "8103"
+      SQL_BACKEND: postgres
+      SQL_DIALECT: postgres
+      SQL_DSN: postgresql://explorer_gateway:${GATEWAY_PASSWORD}@postgres:5432/sail
+
+  agent-api:
+    <<: *app
+    command: ["sailx-agent-api"]
+    environment: &agent-env
+      <<: *app-env
+      API_PORT: "8104"
+      PHENOTYPE_MCP_URL: http://phenotype-mcp:8102/mcp
+      SQL_MCP_URL: http://sql-mcp:8103/mcp
+      SQL_DIALECT_NAME: PostgreSQL
+    ports: ["127.0.0.1:8104:8104"]
+    depends_on: [catalog-mcp, phenotype-mcp, sql-mcp]
+
+  ui:
+    <<: *app
+    environment: *agent-env
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on: [catalog-mcp, phenotype-mcp, sql-mcp]
+
+  ollama:
+    profiles: ["local-llm"]
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes: [ollama:/root/.ollama]
+    # Uncomment for NVIDIA GPUs:
+    # deploy: {resources: {reservations: {devices: [{capabilities: [gpu]}]}}}
+
+  n8n:
+    profiles: ["slack"]
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+    environment:
+      N8N_HOST: localhost
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      GENERIC_TIMEZONE: Europe/London
+    ports: ["127.0.0.1:5678:5678"]
+    volumes:
+      - n8n:/home/node/.n8n
+      - ./n8n:/workflows:ro
+
+volumes:
+  pgdata:
+  ollama:
+  n8n:

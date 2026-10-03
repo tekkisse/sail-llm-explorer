@@ -1,0 +1,71 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $np := .Values.networkPolicy -}}
+{{- $rel := .Release.Name -}}
+# Only the UI and agent API may call the MCP servers.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "sailx.fullname" . }}-mcp-ingress
+  labels: {{- include "sailx.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app.kubernetes.io/instance, operator: In, values: [{{ $rel }}]}
+      - {key: app.kubernetes.io/component, operator: In, values: [sql-mcp, phenotype-mcp, catalog-mcp]}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - {key: app.kubernetes.io/instance, operator: In, values: [{{ $rel }}]}
+              - {key: app.kubernetes.io/component, operator: In, values: [ui, agent-api]}
+---
+# The SQL MCP server may only reach DNS and the research database.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "sailx.fullname" . }}-sql-egress
+  labels: {{- include "sailx.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/instance: {{ $rel }}, app.kubernetes.io/component: sql-mcp}
+  policyTypes: [Egress]
+  egress:
+    - to: [{namespaceSelector: {}, podSelector: {matchLabels: {k8s-app: kube-dns}}}]
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to: [{ipBlock: {cidr: {{ $np.databaseCidr }}}}]
+      ports: [{protocol: TCP, port: {{ $np.databasePort }}}]
+---
+# The UI and agent API may reach the MCP servers, the LLM and OpenMetadata - nothing else.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "sailx.fullname" . }}-agent-egress
+  labels: {{- include "sailx.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app.kubernetes.io/instance, operator: In, values: [{{ $rel }}]}
+      - {key: app.kubernetes.io/component, operator: In, values: [ui, agent-api]}
+  policyTypes: [Egress]
+  egress:
+    - to: [{namespaceSelector: {}, podSelector: {matchLabels: {k8s-app: kube-dns}}}]
+      ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
+    - to: [{podSelector: {matchLabels: {app.kubernetes.io/instance: {{ $rel }}}}}]
+    - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: {{ $np.llmNamespace }}}}}]
+    - to: [{ipBlock: {cidr: {{ $np.openmetadataCidr }}}}]
+      ports: [{protocol: TCP, port: {{ $np.openmetadataPort }}}]
+---
+# The agent API accepts traffic only from n8n.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "sailx.fullname" . }}-api-ingress
+  labels: {{- include "sailx.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/instance: {{ $rel }}, app.kubernetes.io/component: agent-api}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: {{ $np.n8nNamespace }}}}}]
+{{- end }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: sail-explorer
+description: SAIL Data Explorer - LLM metadata discovery and governed text-to-SQL inside the TRE
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

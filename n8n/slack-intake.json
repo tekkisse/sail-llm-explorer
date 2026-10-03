@@ -1,0 +1,76 @@
+{
+  "name": "SAIL Explorer - Slack intake",
+  "nodes": [
+    {
+      "parameters": {
+        "trigger": ["app_mention"],
+        "watchWorkspace": true,
+        "options": {}
+      },
+      "id": "a1f0c0de-0001-4000-8000-000000000001",
+      "name": "Slack Trigger",
+      "type": "n8n-nodes-base.slackTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "credentials": {"slackApi": {"id": "REPLACE", "name": "Slack bot"}}
+    },
+    {
+      "parameters": {
+        "resource": "user",
+        "operation": "info",
+        "user": {"__rl": true, "value": "={{ $json.user }}", "mode": "id"}
+      },
+      "id": "a1f0c0de-0002-4000-8000-000000000002",
+      "name": "Look up Slack user",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [220, 300],
+      "credentials": {"slackApi": {"id": "REPLACE", "name": "Slack bot"}}
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://agent-api:8104/v1/ask",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ question: $('Slack Trigger').item.json.text.replace(/<@[^>]+>/g, '').trim(), user_email: $json.profile.email, channel: 'slack' }) }}",
+        "options": {"timeout": 180000}
+      },
+      "id": "a1f0c0de-0003-4000-8000-000000000003",
+      "name": "Ask the explorer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 300],
+      "credentials": {"httpHeaderAuth": {"id": "REPLACE", "name": "SAIL explorer API key (header X-API-Key)"}}
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {"__rl": true, "value": "={{ $('Slack Trigger').item.json.channel }}", "mode": "id"},
+        "text": "={{ $json.answer }}\n\n_Metadata answers only in Slack. For data questions use the explorer inside the TRE: {{ $json.web_url }}_",
+        "otherOptions": {
+          "thread_ts": {"replyValues": {"thread_ts": "={{ $('Slack Trigger').item.json.thread_ts || $('Slack Trigger').item.json.ts }}"}},
+          "mrkdwn": true
+        }
+      },
+      "id": "a1f0c0de-0004-4000-8000-000000000004",
+      "name": "Reply in thread",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [660, 300],
+      "credentials": {"slackApi": {"id": "REPLACE", "name": "Slack bot"}}
+    }
+  ],
+  "connections": {
+    "Slack Trigger": {"main": [[{"node": "Look up Slack user", "type": "main", "index": 0}]]},
+    "Look up Slack user": {"main": [[{"node": "Ask the explorer", "type": "main", "index": 0}]]},
+    "Ask the explorer": {"main": [[{"node": "Reply in thread", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"},
+  "pinData": {},
+  "active": false
+}

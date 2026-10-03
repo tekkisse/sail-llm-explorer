@@ -1,0 +1,58 @@
+{
+  "_note": "DEMO FIXTURE ONLY. IDs are invented (PH-DEMO-*) and do not correspond to real HDR UK Phenotype Library entries. Used when PHENOTYPE_FIXTURES is set, e.g. offline demos or tests.",
+  "phenotypes": [
+    {
+      "phenotype_id": "PH-DEMO-1",
+      "version_id": 1,
+      "name": "Type 2 diabetes",
+      "author": "Demo",
+      "definition": "People with a primary care diagnosis code for type 2 or non-insulin dependent diabetes, or a hospital diagnosis of type 2 diabetes.",
+      "keywords": ["diabetes", "type 2 diabetes", "t2dm", "niddm", "diabetes mellitus"],
+      "codes": [
+        {"code": "C10F.", "description": "Type 2 diabetes mellitus", "coding_system": "Read codes v2"},
+        {"code": "C109.", "description": "Non-insulin dependent diabetes mellitus", "coding_system": "Read codes v2"},
+        {"code": "E11", "description": "Type 2 diabetes mellitus", "coding_system": "ICD10 codes"},
+        {"code": "E119", "description": "Type 2 diabetes mellitus without complications", "coding_system": "ICD10 codes"}
+      ]
+    },
+    {
+      "phenotype_id": "PH-DEMO-2",
+      "version_id": 3,
+      "name": "Hypertension",
+      "author": "Demo",
+      "definition": "People with a primary care or hospital diagnosis code for essential hypertension.",
+      "keywords": ["hypertension", "high blood pressure", "htn"],
+      "codes": [
+        {"code": "G20..", "description": "Essential hypertension", "coding_system": "Read codes v2"},
+        {"code": "G203.", "description": "Diastolic hypertension", "coding_system": "Read codes v2"},
+        {"code": "I10", "description": "Essential (primary) hypertension", "coding_system": "ICD10 codes"},
+        {"code": "I10X", "description": "Essential (primary) hypertension", "coding_system": "ICD10 codes"}
+      ]
+    },
+    {
+      "phenotype_id": "PH-DEMO-3",
+      "version_id": 2,
+      "name": "Asthma",
+      "author": "Demo",
+      "definition": "People with a primary care or hospital diagnosis code for asthma.",
+      "keywords": ["asthma"],
+      "codes": [
+        {"code": "H33..", "description": "Asthma", "coding_system": "Read codes v2"},
+        {"code": "H333.", "description": "Acute exacerbation of asthma", "coding_system": "Read codes v2"},
+        {"code": "J45", "description": "Asthma", "coding_system": "ICD10 codes"},
+        {"code": "J459", "description": "Asthma, unspecified", "coding_system": "ICD10 codes"}
+      ]
+    },
+    {
+      "phenotype_id": "PH-DEMO-4",
+      "version_id": 1,
+      "name": "Current smoker",
+      "author": "Demo",
+      "definition": "Most recent smoking status code indicates current smoker.",
+      "keywords": ["smoking", "smoker", "tobacco", "current smoker"],
+      "codes": [
+        {"code": "137R.", "description": "Current smoker", "coding_system": "Read codes v2"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{{- $root := . -}}
+{{- $full := include "sailx.fullname" . -}}
+{{- range $name, $c := .Values.components }}
+{{- if $c.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $full }}-{{ $name }}
+  labels:
+    {{- include "sailx.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  replicas: {{ $c.replicas | default 1 }}
+  selector:
+    matchLabels: {{- include "sailx.selector" (dict "root" $root "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "sailx.selector" (dict "root" $root "name" $name) | nindent 8 }}
+      annotations:
+        checksum/config: {{ toJson $root.Values.config | sha256sum }}
+        checksum/projects: {{ $root.Values.projects | sha256sum }}
+    spec:
+      {{- with $root.Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      securityContext: {{- toYaml $root.Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ $name }}
+          image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          command: {{- toYaml $c.command | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ $c.port }}
+          envFrom:
+            - configMapRef: {name: {{ $full }}-config}
+            - secretRef: {name: {{ $root.Values.existingSecret }}}
+          env:
+            {{- range $k, $v := ($c.env | default dict) }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          {{- if eq $name "ui" }}
+          readinessProbe:
+            httpGet: {path: /, port: http}
+          {{- else if eq $name "agent-api" }}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+          {{- else }}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+          {{- end }}
+          resources: {{- toYaml $c.resources | nindent 12 }}
+          securityContext: {{- toYaml $root.Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - {name: projects, mountPath: /config, readOnly: true}
+            {{- if eq $name "ui" }}
+            - {name: ui-scratch, mountPath: /app/.files}
+            - {name: ui-chainlit, mountPath: /app/.chainlit}
+            {{- end }}
+      volumes:
+        - name: projects
+          configMap: {name: {{ $full }}-projects}
+        {{- if eq $name "ui" }}
+        - {name: ui-scratch, emptyDir: {}}
+        - {name: ui-chainlit, emptyDir: {}}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $full }}-{{ $name }}
+  labels:
+    {{- include "sailx.labels" $root | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  selector: {{- include "sailx.selector" (dict "root" $root "name" $name) | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $c.port }}
+      targetPort: http
+{{- end }}
+{{- end }}

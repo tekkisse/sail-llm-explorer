@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sailx.fullname" . }}-config
+  labels: {{- include "sailx.labels" . | nindent 4 }}
+data:
+  {{- range $k, $v := .Values.config }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+  PHENOTYPE_MCP_URL: {{ printf "http://%s-phenotype-mcp:8102/mcp" (include "sailx.fullname" .) | quote }}
+  SQL_MCP_URL: {{ printf "http://%s-sql-mcp:8103/mcp" (include "sailx.fullname" .) | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sailx.fullname" . }}-projects
+  labels: {{- include "sailx.labels" . | nindent 4 }}
+data:
+  projects.yaml: |
+{{ .Values.projects | indent 4 }}

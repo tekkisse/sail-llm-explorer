@@ -1,0 +1,29 @@
+# OpenMetadata ingestion for the demo database (metadata). Run with:
+#   metadata ingest -c openmetadata/postgres-metadata.yaml
+# For SAIL production, use the Db2 connector (type: Db2) with the same structure.
+source:
+  type: postgres
+  serviceName: sail_demo
+  serviceConnection:
+    config:
+      type: Postgres
+      username: metadata_profiler
+      authType:
+        password: ${PROFILER_PASSWORD}
+      hostPort: postgres:5432
+      database: sail
+  sourceConfig:
+    config:
+      type: DatabaseMetadata
+      schemaFilterPattern:
+        includes: ["^sail$"]
+      includeViews: false
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  openMetadataServerConfig:
+    hostPort: ${OM_HOST:-http://openmetadata-server:8585/api}
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: ${OM_BOT_JWT}

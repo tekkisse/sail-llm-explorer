@@ -1,0 +1,36 @@
+# OpenMetadata profiler for the demo database. Run after the metadata ingestion:
+#   metadata profile -c openmetadata/postgres-profiler.yaml
+# Profile hygiene: sample data is OFF so no row-level values are stored in OpenMetadata.
+# Also exclude min/max/top-value metrics for identifier and sensitive columns
+# (column-level profiler config in the OpenMetadata UI, or tag them PII.Sensitive).
+source:
+  type: postgres
+  serviceName: sail_demo
+  serviceConnection:
+    config:
+      type: Postgres
+      username: metadata_profiler
+      authType:
+        password: ${PROFILER_PASSWORD}
+      hostPort: postgres:5432
+      database: sail
+  sourceConfig:
+    config:
+      type: Profiler
+      generateSampleData: false
+      profileSample: 100
+      profileSampleType: PERCENTAGE
+      schemaFilterPattern:
+        includes: ["^sail$"]
+processor:
+  type: orm-profiler
+  config: {}
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  openMetadataServerConfig:
+    hostPort: ${OM_HOST:-http://openmetadata-server:8585/api}
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: ${OM_BOT_JWT}
