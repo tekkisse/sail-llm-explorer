@@ -1,0 +1,77 @@
+# hdcat_vocab_map.yaml
+# Maps the enum codes created by om_hdcat_setup.py to the URIs the HealthDCAT-AP exporter emits.
+# Entries marked "TODO" must be confirmed against the published vocabularies before you publish
+# (HealthDCAT-AP Release 7: https://healthdataeu.pages.code.europa.eu/healthdcat-ap/releases/release-7/).
+
+namespaces:
+  healthdcatap: "http://healthdataportal.eu/ns/health#"   # TODO: R7 prefix table and property URIs differ (w3id.org/healthdcatap#) - confirm
+  dcatap: "http://data.europa.eu/r5r/"
+  dpv: "https://w3id.org/dpv#"
+  eu-gdpr: "https://w3id.org/dpv/legal/eu/gdpr#"
+
+hdcatAccessRights:
+  PUBLIC: "http://publications.europa.eu/resource/authority/access-right/PUBLIC"
+  RESTRICTED: "http://publications.europa.eu/resource/authority/access-right/RESTRICTED"
+  NON_PUBLIC: "http://publications.europa.eu/resource/authority/access-right/NON_PUBLIC"
+
+hdcatApplicableLegislation:
+  UK_GDPR: "http://www.legislation.gov.uk/eur/2016/679"
+  DPA_2018: "http://www.legislation.gov.uk/id/ukpga/2018/12"
+  DEA_2017: "http://www.legislation.gov.uk/id/ukpga/2017/30"
+  COPI_2002: "http://www.legislation.gov.uk/id/uksi/2002/1438"
+  EHDS: "http://data.europa.eu/eli/reg/2025/327/oj"
+
+hdcatLegalBasis:            # DPV GDPR legal bases
+  GDPR_6_1_A: "eu-gdpr:A6-1-a"
+  GDPR_6_1_C: "eu-gdpr:A6-1-c"
+  GDPR_6_1_E: "eu-gdpr:A6-1-e"
+  GDPR_6_1_F: "eu-gdpr:A6-1-f"
+  GDPR_9_2_A: "eu-gdpr:A9-2-a"
+  GDPR_9_2_H: "eu-gdpr:A9-2-h"
+  GDPR_9_2_I: "eu-gdpr:A9-2-i"
+  GDPR_9_2_J: "eu-gdpr:A9-2-j"
+
+hdcatPurpose:               # TODO: confirm DPV purpose terms
+  ACADEMIC_RESEARCH: "dpv:AcademicResearch"
+  RESEARCH_AND_DEVELOPMENT: "dpv:ResearchAndDevelopment"
+  PUBLIC_HEALTH: "TODO"
+  HEALTHCARE_PLANNING: "TODO"
+  OFFICIAL_STATISTICS: "TODO"
+
+hdcatPersonalData:          # TODO: confirm DPV personal-data category terms
+  HEALTH: "TODO"
+  GENETIC: "TODO"
+  AGE: "TODO"
+  GENDER: "TODO"
+  LOCATION: "TODO"
+  SOCIOECONOMIC: "TODO"
+  ETHNICITY: "TODO"
+
+hdcatSpatialCoverage:       # TODO: choose GeoNames or ONS geography URIs
+  WALES: "TODO"
+  ENGLAND: "TODO"
+  SCOTLAND: "TODO"
+  NORTHERN_IRELAND: "TODO"
+  UK: "http://publications.europa.eu/resource/authority/country/GBR"
+
+hdcatHealthCategory:        # TODO: map to HealthDCAT-AP 'Health Categories' vocabulary (EHDS Art. 51)
+  EHR: "TODO"
+  HEALTH_DETERMINANTS: "TODO"
+  HEALTHCARE_RESOURCES: "TODO"
+  PATHOGEN: "TODO"
+  ADMIN_CLAIMS: "TODO"
+  GENOMIC: "TODO"
+  OTHER_MOLECULAR: "TODO"
+  DEVICE_GENERATED: "TODO"
+  WELLNESS_APPS: "TODO"
+  HEALTH_PROFESSIONALS: "TODO"
+  POPULATION_REGISTRY: "TODO"
+  MEDICAL_MORTALITY_REGISTRY: "TODO"
+  CLINICAL_TRIALS: "TODO"
+  PRODUCT_DEVICE_REGISTRY: "TODO"
+  RESEARCH_COHORT_SURVEY: "TODO"
+  BIOBANK: "TODO"
+
+hdcatHealthTheme: {}        # TODO: map to HealthDCAT-AP 'Health Theme' vocabulary
+hdcatConformsTo: {}         # TODO: map to HealthDCAT-AP 'Standard' vocabulary (new in R7)
+CodingSystem: {}            # TODO: map tags to HealthDCAT-AP 'Coding System' vocabulary (new in R7)
